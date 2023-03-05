@@ -378,16 +378,19 @@ void Application::MouseMoved( float x, float y ) {
 	Vec2 ds = newPosition - m_mousePosition;
 	m_mousePosition = newPosition;
 
-	float sensitivity = 0.01f;
-	m_cameraPositionTheta += ds.y * sensitivity;
-	m_cameraPositionPhi += ds.x * sensitivity;
+    int state = glfwGetMouseButton(m_glfwWindow, GLFW_MOUSE_BUTTON_LEFT);
+    if (state == GLFW_PRESS) {
+        float sensitivity = 0.01f;
+        m_cameraPositionTheta += ds.y * sensitivity;
+        m_cameraPositionPhi += ds.x * sensitivity;
 
-	if ( m_cameraPositionTheta < 0.14f ) {
-		m_cameraPositionTheta = 0.14f;
-	}
-	if ( m_cameraPositionTheta > 3.0f ) {
-		m_cameraPositionTheta = 3.0f;
-	}
+        if (m_cameraPositionTheta < 0.14f) {
+            m_cameraPositionTheta = 0.14f;
+        }
+        if (m_cameraPositionTheta > 3.0f) {
+            m_cameraPositionTheta = 3.0f;
+        }
+    }
 }
  
 /*
