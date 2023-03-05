@@ -2,7 +2,7 @@
 //	Bounds.cpp
 //
 #include "Bounds.h"
-#include "../Physics/Body.h"
+#include "Physics/Body.h"
 
 /*
 ====================================================

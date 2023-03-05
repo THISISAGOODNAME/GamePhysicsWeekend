@@ -2,11 +2,11 @@
 //	ConstraintBase.h
 //
 #pragma once
-#include "../../Math/Vector.h"
-#include "../../Math/Quat.h"
-#include "../../Math/Matrix.h"
-#include "../../Math/Bounds.h"
-#include "../../Math/LCP.h"
+#include "Math/Vector.h"
+#include "Math/Quat.h"
+#include "Math/Matrix.h"
+#include "Math/Bounds.h"
+#include "Math/LCP.h"
 #include "../Body.h"
 #include <vector>
 

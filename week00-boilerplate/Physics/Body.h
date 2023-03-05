@@ -2,14 +2,14 @@
 //	Body.h
 //
 #pragma once
-#include "../Math/Vector.h"
-#include "../Math/Quat.h"
-#include "../Math/Matrix.h"
-#include "../Math/Bounds.h"
+#include "Math/Vector.h"
+#include "Math/Quat.h"
+#include "Math/Matrix.h"
+#include "Math/Bounds.h"
 #include "Shapes.h"
 
-#include "../Renderer/model.h"
-#include "../Renderer/shader.h"
+#include "Renderer/model.h"
+#include "Renderer/shader.h"
 
 /*
 ====================================================
