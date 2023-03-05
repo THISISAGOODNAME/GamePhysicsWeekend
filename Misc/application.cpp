@@ -437,6 +437,9 @@ void Application::Keyboard( int key, int scancode, int action, int modifiers ) {
 	if ( GLFW_KEY_Y == key && ( GLFW_PRESS == action || GLFW_REPEAT == action ) ) {
 		m_stepFrame = m_isPaused && !m_stepFrame;
 	}
+    if ( GLFW_KEY_ESCAPE == key && GLFW_PRESS == action ) {
+        glfwSetWindowShouldClose(m_glfwWindow, GL_TRUE);
+    }
 }
 
 /*
