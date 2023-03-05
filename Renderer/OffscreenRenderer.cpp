@@ -5,7 +5,7 @@
 #include "model.h"
 #include "Samplers.h"
 
-#include "../application.h"
+#include "Misc/application.h"
 #include <assert.h>
 #include <stdio.h>
 #include <vector>

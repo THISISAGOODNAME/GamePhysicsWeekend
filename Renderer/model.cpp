@@ -2,10 +2,10 @@
 //  model.cpp
 //
 #include "model.h"
-#include "../Math/Vector.h"
-#include "../Fileio.h"
+#include "Math/Vector.h"
+#include "Misc/Fileio.h"
 #include <string.h>
-#include "../Physics/Shapes.h"
+#include "Physics/Shapes.h"
 #include <algorithm>
 
 #pragma warning( disable : 4996 )
