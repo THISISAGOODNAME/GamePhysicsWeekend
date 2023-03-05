@@ -67,10 +67,6 @@ void ResolveContact( contact_t & contact ) {
     const Vec3 inertiaB = ( invWorldInertiaB * rb.Cross( relativeVelTang ) ).Cross( rb );
     const float invInertia = ( inertiaA + inertiaB ).Dot( relativeVelTang );
 
-    // Let’s also move our colliding objects to just outside of each other
-    const float tA = bodyA->m_invMass / (bodyA->m_invMass + bodyB->m_invMass);
-    const float tB = bodyB->m_invMass / (bodyA->m_invMass + bodyB->m_invMass);
-
     // Calculate the tangential impulse for friction
     const float reducedMass = 1.0f / ( bodyA->m_invMass + bodyB->m_invMass + invInertia );
     const Vec3 impulseFriction = velTang * reducedMass * friction;
@@ -79,7 +75,17 @@ void ResolveContact( contact_t & contact ) {
     bodyA->ApplyImpulse(ptOnA, impulseFriction * -1.0f);
     bodyB->ApplyImpulse(ptOnB, impulseFriction * 1.0f);
 
-    const Vec3 ds = contact.ptOnB_WorldSpace - contact.ptOnA_WorldSpace;
-    bodyA->m_position += ds * tA;
-    bodyB->m_position -= ds * tB;
+    //
+    // Let’s also move our colliding objects to just outside of each other
+    // Only when TOI is 0.0f
+    //
+    if (0.0f == contact.timeOfImpact)
+    {
+        const Vec3 ds = contact.ptOnB_WorldSpace - contact.ptOnA_WorldSpace;
+        const float tA = bodyA->m_invMass / (bodyA->m_invMass + bodyB->m_invMass);
+        const float tB = bodyB->m_invMass / (bodyA->m_invMass + bodyB->m_invMass);
+
+        bodyA->m_position += ds * tA;
+        bodyB->m_position -= ds * tB;
+    }
 }
