@@ -9,21 +9,42 @@ ResolveContact
 ====================================================
 */
 void ResolveContact( contact_t & contact ) {
-	// TODO: Add Code
     Body* bodyA = contact.bodyA;
     Body* bodyB = contact.bodyB;
+
+    const Vec3 ptOnA = contact.ptOnA_WorldSpace;
+    const Vec3 ptOnB = contact.ptOnB_WorldSpace;
 
     const float invMassA = bodyA->m_invMass;
     const float invMassB = bodyB->m_invMass;
 
-    // Calculate the collision impulse
+    const Mat3 invWorldInertiaA = bodyA->GetInverseInertiaTensorWorldSpace();
+    const Mat3 invWorldInertiaB = bodyB->GetInverseInertiaTensorWorldSpace();
+
+    const float elasticityA = bodyA->m_elasticity;
+    const float elasticityB = bodyB->m_elasticity;
+    const float elasticity = elasticityA * elasticityB;
+
     const Vec3& n = contact.normal;
-    const Vec3 vab = bodyA->m_linearVelocity - bodyB->m_linearVelocity;
-    const float impulseJ = -2.0f * vab.Dot(n) / (invMassA + invMassB);
+
+    const Vec3 ra = ptOnA - bodyA->GetCenterOfMassWorldSpace();
+    const Vec3 rb = ptOnB - bodyB->GetCenterOfMassWorldSpace();
+
+    const Vec3 anjularJA = (invWorldInertiaA * ra.Cross(n)).Cross(ra);
+    const Vec3 anjularJB = (invWorldInertiaB * rb.Cross(n)).Cross(rb);
+    const float angularFactor = (anjularJA + anjularJB).Dot(n);
+
+    // Get the world space velocity of the motion and rotation
+    const Vec3 velA = bodyA->m_linearVelocity + bodyA->m_angularVelocity.Cross(ra);
+    const Vec3 velB = bodyB->m_linearVelocity + bodyB->m_angularVelocity.Cross(rb);
+
+    // Calculate the collision impulse
+    const Vec3 vab = velA - velB;
+    const float impulseJ = (1.0f + elasticity) * vab.Dot(n) / (invMassA + invMassB + angularFactor);
     const Vec3 vectorImpulseJ = n * impulseJ;
 
-    bodyA->ApplyImpulseLinear(vectorImpulseJ * 1.0f);
-    bodyB->ApplyImpulseLinear(vectorImpulseJ * -1.0f);
+    bodyA->ApplyImpulse(ptOnA, vectorImpulseJ * -1.0f);
+    bodyB->ApplyImpulse(ptOnB, vectorImpulseJ * 1.0f);
 
     // Let’s also move our colliding objects to just outside of each other
     const float tA = bodyA->m_invMass / (bodyA->m_invMass + bodyB->m_invMass);
