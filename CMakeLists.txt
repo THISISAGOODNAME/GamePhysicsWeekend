@@ -31,3 +31,4 @@ file(GLOB_RECURSE BOOK_SRC
 
 add_subdirectory(week00-boilerplate)
 add_subdirectory(week01)
+add_subdirectory(week02)
