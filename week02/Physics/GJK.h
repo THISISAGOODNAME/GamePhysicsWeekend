@@ -9,6 +9,8 @@
 #include "Body.h"
 #include "Shapes.h"
 
+void TestSignedVolumeProjection();
+
 bool GJK_DoesIntersect( const Body * bodyA, const Body * bodyB );
 bool GJK_DoesIntersect( const Body * bodyA, const Body * bodyB, const float bias, Vec3 & ptOnA, Vec3 & ptOnB );
 void GJK_ClosestPoints( const Body * bodyA, const Body * bodyB, Vec3 & ptOnA, Vec3 & ptOnB );

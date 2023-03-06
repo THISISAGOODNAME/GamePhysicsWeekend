@@ -5,6 +5,7 @@
 #include "Physics/Contact.h"
 #include "Physics/Intersections.h"
 #include "Physics/Broadphase.h"
+#include "Physics/GJK.h"
 
 /*
 ========================================================================================================
@@ -105,6 +106,8 @@ Scene::Initialize
 ====================================================
 */
 void Scene::Initialize() {
+    TestSignedVolumeProjection();
+
     Body body;
 
     body.m_position = Vec3( 10, 0, 3 );
