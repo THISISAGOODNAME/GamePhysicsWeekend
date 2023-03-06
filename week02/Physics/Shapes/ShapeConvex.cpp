@@ -368,6 +368,118 @@ void ExpandConvexHull( std::vector< Vec3 > & hullPoints, std::vector< tri_t > & 
     RemoveUnreferencedVerts( hullPoints, hullTris );
 }
 
+/*
+================================
+IsExternal
+================================
+*/
+bool IsExternal( const std::vector< Vec3 > & pts, const std::vector< tri_t > & tris, const Vec3 & pt ) {
+    bool isExternal = false;
+    for ( int t = 0; t < tris.size(); t++ ) {
+        const tri_t & tri = tris[ t ];
+        const Vec3 & a = pts[ tri.a ];
+        const Vec3 & b = pts[ tri.b ];
+        const Vec3 & c = pts[ tri.c ];
+
+        // If the point is in front of any triangle then it's external
+        float dist = DistanceFromTriangle( a, b, c, pt );
+        if ( dist > 0.0f ) {
+            isExternal = true;
+            break;
+        }
+    }
+
+    return isExternal;
+}
+
+/*
+================================
+CalculateCenterOfMass
+================================
+*/
+Vec3 CalculateCenterOfMass( const std::vector< Vec3 > & pts, const std::vector< tri_t > & tris ) {
+    const int numSamples = 100;
+
+    Bounds bounds;
+    bounds.Expand( pts.data(), pts.size() );
+
+    Vec3 cm( 0.0f );
+    const float dx = bounds.WidthX() / (float)numSamples;
+    const float dy = bounds.WidthY() / (float)numSamples;
+    const float dz = bounds.WidthZ() / (float)numSamples;
+
+    int sampleCount = 0;
+    for ( float x = bounds.mins.x; x < bounds.maxs.x; x += dx ) {
+        for ( float y = bounds.mins.y; y < bounds.maxs.y; y += dy ) {
+            for ( float z = bounds.mins.z; z < bounds.maxs.z; z += dz ) {
+                Vec3 pt( x, y, z );
+
+                if ( IsExternal( pts, tris, pt ) ) {
+                    continue;
+                }
+
+                cm += pt;
+                sampleCount++;
+            }
+        }
+    }
+
+    cm /= (float)sampleCount;
+    return cm;
+}
+
+/*
+================================
+CalculateInertiaTensor
+================================
+*/
+Mat3 CalculateInertiaTensor( const std::vector< Vec3 > & pts, const std::vector< tri_t > & tris, const Vec3 & cm ) {
+    const int numSamples = 100;
+
+    Bounds bounds;
+    bounds.Expand( pts.data(), (int)pts.size() );
+
+    Mat3 tensor;
+    tensor.Zero();
+
+    const float dx = bounds.WidthX() / (float)numSamples;
+    const float dy = bounds.WidthY() / (float)numSamples;
+    const float dz = bounds.WidthZ() / (float)numSamples;
+
+    int sampleCount = 0;
+    for ( float x = bounds.mins.x; x < bounds.maxs.x; x += dx ) {
+        for ( float y = bounds.mins.y; y < bounds.maxs.y; y += dy ) {
+            for ( float z = bounds.mins.z; z < bounds.maxs.z; z += dz ) {
+                Vec3 pt( x, y, z );
+
+                if ( IsExternal( pts, tris, pt ) ) {
+                    continue;
+                }
+
+                // Get the point relative to the center of mass
+                pt -= cm;
+
+                tensor.rows[ 0 ][ 0 ] += pt.y * pt.y + pt.z * pt.z;
+                tensor.rows[ 1 ][ 1 ] += pt.z * pt.z + pt.x * pt.x;
+                tensor.rows[ 2 ][ 2 ] += pt.x * pt.x + pt.y * pt.y;
+
+                tensor.rows[ 0 ][ 1 ] += -1.0f * pt.x * pt.y;
+                tensor.rows[ 0 ][ 2 ] += -1.0f * pt.x * pt.z;
+                tensor.rows[ 1 ][ 2 ] += -1.0f * pt.y * pt.z;
+
+                tensor.rows[ 1 ][ 0 ] += -1.0f * pt.x * pt.y;
+                tensor.rows[ 2 ][ 0 ] += -1.0f * pt.x * pt.z;
+                tensor.rows[ 2 ][ 1 ] += -1.0f * pt.y * pt.z;
+
+                sampleCount++;
+            }
+        }
+    }
+
+    tensor *= 1.0f / (float)sampleCount;
+    return tensor;
+}
+
 #pragma endregion ShapeConvex helper functions
 
 /*
@@ -379,7 +491,14 @@ ShapeConvex
 */
 
 void BuildConvexHull( const std::vector< Vec3 > & verts, std::vector< Vec3 > & hullPts, std::vector< tri_t > & hullTris ) {
-	// TODO: Add code
+	if (verts.size() < 4) {
+        return;
+    }
+
+    // Build a tetrahedron
+    BuildTetrahedron(verts.data(), (int)verts.size(), hullPts, hullTris);
+
+    ExpandConvexHull(hullPts, hullTris, verts);
 }
 
 /*
@@ -388,7 +507,25 @@ ShapeConvex::Build
 ====================================================
 */
 void ShapeConvex::Build( const Vec3 * pts, const int num ) {
-	// TODO: Add code
+    m_points.clear();
+    m_points.reserve( num );
+    for ( int i = 0; i < num; i++ ) {
+        m_points.push_back( pts[ i ] );
+    }
+
+    // Expand into a convex hull
+    std::vector< Vec3 > hullPoints;
+    std::vector< tri_t > hullTriangles;
+    BuildConvexHull( m_points, hullPoints, hullTriangles );
+    m_points = hullPoints;
+
+    // Expand the bounds
+    m_bounds.Clear();
+    m_bounds.Expand( m_points.data(), m_points.size() );
+
+    m_centerOfMass = CalculateCenterOfMass( hullPoints, hullTriangles );
+
+    m_inertiaTensor = CalculateInertiaTensor( hullPoints, hullTriangles, m_centerOfMass );
 }
 
 /*
@@ -397,11 +534,24 @@ ShapeConvex::Support
 ====================================================
 */
 Vec3 ShapeConvex::Support( const Vec3 & dir, const Vec3 & pos, const Quat & orient, const float bias ) const {
-	Vec3 supportPt;
-	
-	// TODO: Add code
+    // Find the point in furthest in direction
+    Vec3 maxPt = orient.RotatePoint( m_points[ 0 ] ) + pos;
+    float maxDist = dir.Dot( maxPt );
+    for ( int i = 1; i < m_points.size(); i++ ) {
+        const Vec3 pt = orient.RotatePoint( m_points[ i ] ) + pos;
+        const float dist = dir.Dot( pt );
 
-	return supportPt;
+        if ( dist > maxDist ) {
+            maxDist = dist;
+            maxPt = pt;
+        }
+    }
+
+    Vec3 norm = dir;
+    norm.Normalize();
+    norm *= bias;
+
+    return maxPt + norm;
 }
 
 /*
