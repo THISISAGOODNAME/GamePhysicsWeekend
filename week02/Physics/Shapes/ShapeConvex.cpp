@@ -1,7 +1,14 @@
 //
 //  ShapeConvex.cpp
 //
+
+#define USE_TASKFLOW 1
+
 #include "ShapeConvex.h"
+#if USE_TASKFLOW
+#include "parallel-util.hpp"
+#endif
+#include <iostream>
 
 #pragma region ShapeConvex helper functions
 /*
@@ -428,6 +435,48 @@ Vec3 CalculateCenterOfMass( const std::vector< Vec3 > & pts, const std::vector< 
     return cm;
 }
 
+#if USE_TASKFLOW
+Vec3 CalculateCenterOfMassWithTaskFlow( const std::vector< Vec3 > & pts, const std::vector< tri_t > & tris ) {
+    const int numSamples = 100;
+
+    Bounds bounds;
+    bounds.Expand( pts.data(), pts.size() );
+
+    Vec3 cm( 0.0f );
+    const float dx = bounds.WidthX() / (float)numSamples;
+    const float dy = bounds.WidthY() / (float)numSamples;
+    const float dz = bounds.WidthZ() / (float)numSamples;
+
+    std::vector<int> sampleCountYZ(100, 0);
+    std::vector<Vec3> cmYZ(100, Vec3( 0.0f ));
+
+    parallelutil::parallel_for(numSamples, [&](int i){
+        float x = x = bounds.mins.x + dx * i;
+        for ( float y = bounds.mins.y; y < bounds.maxs.y; y += dy ) {
+            for ( float z = bounds.mins.z; z < bounds.maxs.z; z += dz ) {
+                Vec3 pt( x, y, z );
+
+                if ( IsExternal( pts, tris, pt ) ) {
+                    continue;
+                }
+
+                cmYZ[i] += pt;
+                sampleCountYZ[i]++;
+            }
+        }
+    });
+
+    int sampleCount = 0;
+    for (int i = 0; i < numSamples; i++)
+    {
+        sampleCount += sampleCountYZ[i];
+        cm += cmYZ[i];
+    }
+    cm /= (float)sampleCount;
+    return cm;
+}
+#endif
+
 /*
 ================================
 CalculateInertiaTensor
@@ -480,6 +529,64 @@ Mat3 CalculateInertiaTensor( const std::vector< Vec3 > & pts, const std::vector<
     return tensor;
 }
 
+#if USE_TASKFLOW
+Mat3 CalculateInertiaTensorWithTaskflow( const std::vector< Vec3 > & pts, const std::vector< tri_t > & tris, const Vec3 & cm ) {
+    const int numSamples = 100;
+
+    Bounds bounds;
+    bounds.Expand( pts.data(), (int)pts.size() );
+
+    Mat3 tensor;
+    tensor.Zero();
+
+    const float dx = bounds.WidthX() / (float)numSamples;
+    const float dy = bounds.WidthY() / (float)numSamples;
+    const float dz = bounds.WidthZ() / (float)numSamples;
+
+    std::vector<int> sampleCountYZ(100, 0);
+    std::vector<Mat3> tensorYZ(100, tensor);
+
+    parallelutil::parallel_for(numSamples, [&](int i){
+        float x = x = bounds.mins.x + dx * i;
+        for ( float y = bounds.mins.y; y < bounds.maxs.y; y += dy ) {
+            for ( float z = bounds.mins.z; z < bounds.maxs.z; z += dz ) {
+                Vec3 pt( x, y, z );
+
+                if ( IsExternal( pts, tris, pt ) ) {
+                    continue;
+                }
+
+                // Get the point relative to the center of mass
+                pt -= cm;
+
+                tensorYZ[i].rows[ 0 ][ 0 ] += pt.y * pt.y + pt.z * pt.z;
+                tensorYZ[i].rows[ 1 ][ 1 ] += pt.z * pt.z + pt.x * pt.x;
+                tensorYZ[i].rows[ 2 ][ 2 ] += pt.x * pt.x + pt.y * pt.y;
+
+                tensorYZ[i].rows[ 0 ][ 1 ] += -1.0f * pt.x * pt.y;
+                tensorYZ[i].rows[ 0 ][ 2 ] += -1.0f * pt.x * pt.z;
+                tensorYZ[i].rows[ 1 ][ 2 ] += -1.0f * pt.y * pt.z;
+
+                tensorYZ[i].rows[ 1 ][ 0 ] += -1.0f * pt.x * pt.y;
+                tensorYZ[i].rows[ 2 ][ 0 ] += -1.0f * pt.x * pt.z;
+                tensorYZ[i].rows[ 2 ][ 1 ] += -1.0f * pt.y * pt.z;
+
+                sampleCountYZ[i]++;
+            }
+        }
+    });
+
+    int sampleCount = 0;
+    for (int i = 0; i < numSamples; i++)
+    {
+        tensor += tensorYZ[i];
+        sampleCount += sampleCountYZ[i];
+    }
+    tensor *= 1.0f / (float)sampleCount;
+    return tensor;
+}
+#endif
+
 #pragma endregion ShapeConvex helper functions
 
 /*
@@ -523,9 +630,32 @@ void ShapeConvex::Build( const Vec3 * pts, const int num ) {
     m_bounds.Clear();
     m_bounds.Expand( m_points.data(), m_points.size() );
 
+    auto start = std::chrono::system_clock::now();
     m_centerOfMass = CalculateCenterOfMass( hullPoints, hullTriangles );
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "CalculateCenterOfMass: " << elapsed.count() << "ms" << std::endl;
+#if USE_TASKFLOW
+    start = std::chrono::system_clock::now();
+    m_centerOfMass = CalculateCenterOfMassWithTaskFlow( hullPoints, hullTriangles );
+    end = std::chrono::system_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "CalculateCenterOfMassWithTaskFlow: " << elapsed.count() << "ms" << std::endl;
+#endif
 
+    start = std::chrono::system_clock::now();
     m_inertiaTensor = CalculateInertiaTensor( hullPoints, hullTriangles, m_centerOfMass );
+    end = std::chrono::system_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "CalculateInertiaTensor: " << elapsed.count() << "ms" << std::endl;
+#if USE_TASKFLOW
+    start = std::chrono::system_clock::now();
+    m_inertiaTensor = CalculateInertiaTensorWithTaskflow( hullPoints, hullTriangles, m_centerOfMass );
+    end = std::chrono::system_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "CalculateInertiaTensorWithTaskflow: " << elapsed.count() << "ms" << std::endl;
+#endif
+
 }
 
 /*
