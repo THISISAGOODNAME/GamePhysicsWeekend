@@ -6,6 +6,160 @@
 
 /*
 ====================================================
+SphereSphereStatic
+====================================================
+*/
+bool SphereSphereStatic( const ShapeSphere * sphereA, const ShapeSphere * sphereB, const Vec3 & posA, const Vec3 & posB, Vec3 & ptOnA, Vec3 & ptOnB ) {
+    const Vec3 ab = posB - posA;
+    Vec3 norm = ab;
+    norm.Normalize();
+
+    ptOnA = posA + norm * sphereA->m_radius;
+    ptOnB = posB - norm * sphereB->m_radius;
+
+    const float radiusAB = sphereA->m_radius + sphereB->m_radius;
+    const float lengthSquare = ab.GetLengthSqr();
+    if ( lengthSquare <= ( radiusAB * radiusAB ) ) {
+        return true;
+    }
+
+    return false;
+}
+
+/*
+====================================================
+Intersect
+====================================================
+*/
+bool Intersect( Body * bodyA, Body * bodyB, contact_t & contact ) {
+    contact.bodyA = bodyA;
+    contact.bodyB = bodyB;
+    contact.timeOfImpact = 0.0f;
+
+    if ( bodyA->m_shape->GetType() == Shape::SHAPE_SPHERE && bodyB->m_shape->GetType() == Shape::SHAPE_SPHERE ) {
+        const ShapeSphere * sphereA = (const ShapeSphere *)bodyA->m_shape;
+        const ShapeSphere * sphereB = (const ShapeSphere *)bodyB->m_shape;
+
+        Vec3 posA = bodyA->m_position;
+        Vec3 posB = bodyB->m_position;
+
+        if ( SphereSphereStatic( sphereA, sphereB, posA, posB, contact.ptOnA_WorldSpace, contact.ptOnB_WorldSpace ) ) {
+            contact.normal = posA - posB;
+            contact.normal.Normalize();
+
+            contact.ptOnA_LocalSpace = bodyA->WorldSpaceToBodySpace( contact.ptOnA_WorldSpace );
+            contact.ptOnB_LocalSpace = bodyB->WorldSpaceToBodySpace( contact.ptOnB_WorldSpace );
+
+            Vec3 ab = bodyB->m_position - bodyA->m_position;
+            float r = ab.GetMagnitude() - ( sphereA->m_radius + sphereB->m_radius );
+            contact.separationDistance = r;
+            return true;
+        }
+    } else {
+        Vec3 ptOnA;
+        Vec3 ptOnB;
+        const float bias = 0.001f;
+        if ( GJK_DoesIntersect( bodyA, bodyB, bias, ptOnA, ptOnB ) ) {
+            // There was an intersection, so get the contact data
+            Vec3 normal = ptOnB - ptOnA;
+            normal.Normalize();
+
+            ptOnA -= normal * bias;
+            ptOnB += normal * bias;
+
+            contact.normal = normal;
+
+            contact.ptOnA_WorldSpace = ptOnA;
+            contact.ptOnB_WorldSpace = ptOnB;
+
+            contact.ptOnA_LocalSpace = bodyA->WorldSpaceToBodySpace( contact.ptOnA_WorldSpace );
+            contact.ptOnB_LocalSpace = bodyB->WorldSpaceToBodySpace( contact.ptOnB_WorldSpace );
+
+            Vec3 ab = bodyB->m_position - bodyA->m_position;
+            float r = ( ptOnA - ptOnB ).GetMagnitude();
+            contact.separationDistance = -r;
+            return true;
+        }
+
+        // There was no collision, but we still want the contact data, so get it
+        GJK_ClosestPoints( bodyA, bodyB, ptOnA, ptOnB );
+        contact.ptOnA_WorldSpace = ptOnA;
+        contact.ptOnB_WorldSpace = ptOnB;
+
+        contact.ptOnA_LocalSpace = bodyA->WorldSpaceToBodySpace( contact.ptOnA_WorldSpace );
+        contact.ptOnB_LocalSpace = bodyB->WorldSpaceToBodySpace( contact.ptOnB_WorldSpace );
+
+        Vec3 ab = bodyB->m_position - bodyA->m_position;
+        float r = ( ptOnA - ptOnB ).GetMagnitude();
+        contact.separationDistance = r;
+    }
+    return false;
+}
+
+/*
+====================================================
+ConservativeAdvance
+====================================================
+*/
+bool ConservativeAdvance( Body * bodyA, Body * bodyB, float dt, contact_t & contact ) {
+    contact.bodyA = bodyA;
+    contact.bodyB = bodyB;
+
+    float toi = 0.0f;
+
+    int numIters = 0;
+
+    // Advance the positions of the bodies until they touch or there's not time left
+    while ( dt > 0.0f ) {
+        // Check for intersection
+        bool didIntersect = Intersect( bodyA, bodyB, contact );
+        if ( didIntersect ) {
+            contact.timeOfImpact = toi;
+            bodyA->Update( -toi );
+            bodyB->Update( -toi );
+            return true;
+        }
+
+        ++numIters;
+        if ( numIters > 10 ) {
+            break;
+        }
+
+        // Get the vector from the closest point on A to the closest point on B
+        Vec3 ab = contact.ptOnB_WorldSpace - contact.ptOnA_WorldSpace;
+        ab.Normalize();
+
+        // project the relative velocity onto the ray of shortest distance
+        Vec3 relativeVelocity = bodyA->m_linearVelocity - bodyB->m_linearVelocity;
+        float orthoSpeed = relativeVelocity.Dot( ab );
+
+        // Add to the orthoSpeed the maximum angular speeds of the relative shapes
+        float angularSpeedA = bodyA->m_shape->FastestLinearSpeed( bodyA->m_angularVelocity, ab );
+        float angularSpeedB = bodyB->m_shape->FastestLinearSpeed( bodyB->m_angularVelocity, ab * -1.0f );
+        orthoSpeed += angularSpeedA + angularSpeedB;
+        if ( orthoSpeed <= 0.0f ) {
+            break;
+        }
+
+        float timeToGo = contact.separationDistance / orthoSpeed;
+        if ( timeToGo > dt ) {
+            break;
+        }
+
+        dt -= timeToGo;
+        toi += timeToGo;
+        bodyA->Update( timeToGo );
+        bodyB->Update( timeToGo );
+    }
+
+    // unwind the clock
+    bodyA->Update( -toi );
+    bodyB->Update( -toi );
+    return false;
+}
+
+/*
+====================================================
 RaySphere
 ====================================================
 */
@@ -126,6 +280,10 @@ bool Intersect( Body * bodyA, Body * bodyB, const float dt, contact_t & contact 
             contact.separationDistance = r;
             return true;
         }
+    } else {
+        // Use GJK to perform conservative advancement
+        bool result = ConservativeAdvance(bodyA, bodyB, dt, contact);
+        return result;
     }
 
 	return false;
