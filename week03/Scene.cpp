@@ -249,6 +249,8 @@ Scene::Update
 ====================================================
 */
 void Scene::Update( const float dt_sec ) {
+    std::vector<ConstraintPenetration> penetrationConsTraints;
+
     // Gravity impulse
     for (int i = 0; i < m_bodies.size(); i++)
     {
@@ -263,7 +265,7 @@ void Scene::Update( const float dt_sec ) {
     }
 
     //
-    // Broad Phase
+    // Broad Phase (build potential collision pairs)
     //
     std::vector<collisionPair_t> collisionPairs;
     BroadPhase(m_bodies.data(), (int)m_bodies.size(), collisionPairs, dt_sec);
@@ -272,8 +274,7 @@ void Scene::Update( const float dt_sec ) {
     // Narrow Phase (perform actual collision detection)
     //
     int numContacts = 0 ;
-    const int maxContacts = m_bodies.size() * m_bodies.size() ;
-    contact_t* contacts = (contact_t*)alloca(sizeof(contact_t) * maxContacts) ;
+    contact_t* contacts = (contact_t*)alloca(sizeof(contact_t) * collisionPairs.size()) ;
     for (int i = 0; i < collisionPairs.size(); i++)
     {
         const collisionPair_t& pair = collisionPairs[i];
@@ -287,8 +288,30 @@ void Scene::Update( const float dt_sec ) {
         contact_t contact;
         if (Intersect(bodyA, bodyB, dt_sec, contact))
         {
-            contacts[numContacts] = contact;
-            numContacts++;
+            if ( 0.0f == contact.timeOfImpact)
+            {
+                // static contact
+                ConstraintPenetration constraint;
+                constraint.m_bodyA = contact.bodyA;
+                constraint.m_bodyB = contact.bodyB;
+
+                constraint.m_anchorA = contact.ptOnA_LocalSpace;
+                constraint.m_anchorB = contact.ptOnB_LocalSpace;
+
+                // Get the normal in BodyA's space
+                Vec3 normal = constraint.m_bodyA->m_orientation.Inverse().RotatePoint( contact.normal * -1.0f );
+
+                constraint.m_normal = normal;
+                constraint.m_normal.Normalize();
+
+                penetrationConsTraints.push_back(constraint);
+            }
+            else
+            {
+                // ballistic contact
+                contacts[numContacts] = contact;
+                numContacts++;
+            }
         }
     }
 
@@ -305,15 +328,25 @@ void Scene::Update( const float dt_sec ) {
     {
         m_constraints[i]->PreSolve(dt_sec);
     }
+    for (int i = 0; i < penetrationConsTraints.size(); i++)
+    {
+        penetrationConsTraints[i].PreSolve(dt_sec);
+    }
     const int maxIters = 5;
     for ( int iters = 0; iters < maxIters; iters++ ) {
         for ( int i = 0; i < m_constraints.size(); i++ ) {
             m_constraints[ i ]->Solve();
         }
+        for (int i = 0; i < penetrationConsTraints.size(); ++i) {
+            penetrationConsTraints[i].Solve();
+        }
     }
     for (int i = 0; i < m_constraints.size(); i++)
     {
         m_constraints[i]->PostSolve();
+    }
+    for (int i = 0; i < penetrationConsTraints.size(); ++i) {
+        penetrationConsTraints[i].PostSolve();
     }
 
     //
