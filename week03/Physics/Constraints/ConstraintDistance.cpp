@@ -37,6 +37,12 @@ void ConstraintDistance::PreSolve( const float dt_sec ) {
     m_Jacobian.rows[ 0 ][ 9 ] = J4.x;
     m_Jacobian.rows[ 0 ][ 10] = J4.y;
     m_Jacobian.rows[ 0 ][ 11] = J4.z;
+
+    //
+    // Apply warm starting from last frame
+    //
+    const VecN impulses = m_Jacobian.Transpose() * m_cachedLambda;
+    ApplyImpulses( impulses );
 }
 
 void ConstraintDistance::Solve()
@@ -55,6 +61,9 @@ void ConstraintDistance::Solve()
     // Apply the impulses
     const VecN impulses = JacobianTranspose * lambdaN;
     ApplyImpulses( impulses );
+
+    // Accumulate the impulses for warm starting
+    m_cachedLambda += lambdaN;
 }
 
 void ConstraintDistance::PostSolve() {

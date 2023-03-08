@@ -274,7 +274,7 @@ void Scene::Update( const float dt_sec ) {
     {
         m_constraints[i]->PreSolve(dt_sec);
     }
-    const int maxIters = 50;
+    const int maxIters = 5;
     for ( int iters = 0; iters < maxIters; iters++ ) {
         for ( int i = 0; i < m_constraints.size(); i++ ) {
             m_constraints[ i ]->Solve();
