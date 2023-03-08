@@ -3,7 +3,8 @@
 //
 #include "ConstraintDistance.h"
 
-void ConstraintDistance::PreSolve( const float dt_sec ) {
+void ConstraintDistance::PreSolve( const float dt_sec )
+{
     // Get the world space position of the hinge from A's orientation
     const Vec3 worldAnchorA = m_bodyA->BodySpaceToWorldSpace( m_anchorA );
 
@@ -66,6 +67,17 @@ void ConstraintDistance::Solve()
     m_cachedLambda += lambdaN;
 }
 
-void ConstraintDistance::PostSolve() {
-
+void ConstraintDistance::PostSolve()
+{
+    // Limit the warm starting to reasonable limits
+    if ( m_cachedLambda[ 0 ] * 0.0f != m_cachedLambda[ 0 ] * 0.0f ) {
+        m_cachedLambda[ 0 ] = 0.0f;
+    }
+    const float limit = 1e5f;
+    if ( m_cachedLambda[ 0 ] > limit ) {
+        m_cachedLambda[ 0 ] = limit;
+    }
+    if ( m_cachedLambda[ 0 ] < -limit ) {
+        m_cachedLambda[ 0 ] = -limit;
+    }
 }
