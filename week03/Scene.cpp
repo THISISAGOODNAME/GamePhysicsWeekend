@@ -108,32 +108,84 @@ Scene::Initialize
 void Scene::Initialize() {
     Body body;
 
-    body.m_position = Vec3(0, 0, 5);
-    body.m_orientation = Quat(0, 0, 0, 1);
-    body.m_shape = new ShapeBox(g_boxSmall, sizeof(g_boxSmall)/sizeof(Vec3));
-    body.m_invMass = 0.0f;
-    body.m_elasticity = 1.0f;
-    m_bodies.push_back(body);
-    Body* bodyA = &m_bodies[m_bodies.size() - 1];
+    //
+    // Build a joint
+    //
+    if (false)
+    {
+        body.m_position = Vec3(0, 0, 5);
+        body.m_orientation = Quat(0, 0, 0, 1);
+        body.m_shape = new ShapeBox(g_boxSmall, sizeof(g_boxSmall)/sizeof(Vec3));
+        body.m_invMass = 0.0f;
+        body.m_elasticity = 1.0f;
+        m_bodies.push_back(body);
+        Body* bodyA = &m_bodies[m_bodies.size() - 1];
 
-    body.m_position = Vec3(1, 0, 5);
-    body.m_orientation = Quat(0, 0, 0, 1);
-    body.m_shape = new ShapeBox(g_boxSmall, sizeof(g_boxSmall)/sizeof(Vec3));
-    body.m_invMass = 1.0f;
-    body.m_elasticity = 1.0f;
-    m_bodies.push_back(body);
-    Body* bodyB = &m_bodies[m_bodies.size() - 1];
+        body.m_position = Vec3(1, 0, 5);
+        body.m_orientation = Quat(0, 0, 0, 1);
+        body.m_shape = new ShapeBox(g_boxSmall, sizeof(g_boxSmall)/sizeof(Vec3));
+        body.m_invMass = 1.0f;
+        body.m_elasticity = 1.0f;
+        m_bodies.push_back(body);
+        Body* bodyB = &m_bodies[m_bodies.size() - 1];
 
-    const Vec3 jointWorldSpaceAnchor = bodyA->m_position;
+        const Vec3 jointWorldSpaceAnchor = bodyA->m_position;
 
-    ConstraintDistance* joint = new ConstraintDistance();
+        ConstraintDistance* joint = new ConstraintDistance();
 
-    joint->m_bodyA = bodyA;
-    joint->m_anchorA = joint->m_bodyA->WorldSpaceToBodySpace(jointWorldSpaceAnchor);
+        joint->m_bodyA = bodyA;
+        joint->m_anchorA = joint->m_bodyA->WorldSpaceToBodySpace(jointWorldSpaceAnchor);
 
-    joint->m_bodyB = bodyB;
-    joint->m_anchorB = joint->m_bodyB->WorldSpaceToBodySpace(jointWorldSpaceAnchor);
-    m_constraints.push_back(joint);
+        joint->m_bodyB = bodyB;
+        joint->m_anchorB = joint->m_bodyB->WorldSpaceToBodySpace(jointWorldSpaceAnchor);
+        m_constraints.push_back(joint);
+    }
+
+    //
+    // Build a chain for funsies
+    //
+    if (true)
+    {
+        const int numJoints = 5;
+        for ( int i = 0; i < numJoints; i++ ) {
+            if ( i == 0 ) {
+                body.m_position = Vec3( 0.0f, 5.0f, (float)numJoints + 3.0f );
+                body.m_orientation = Quat( 0, 0, 0, 1 );
+                body.m_shape = new ShapeBox( g_boxSmall, sizeof( g_boxSmall ) / sizeof( Vec3 ) );
+                body.m_invMass = 0.0f;
+                body.m_elasticity = 1.0f;
+                m_bodies.push_back( body );
+            } else {
+                body.m_invMass = 1.0f;
+            }
+
+            body.m_linearVelocity = Vec3( 0, 0, 0 );
+
+            Body * bodyA = &m_bodies[ m_bodies.size() - 1 ];
+            const Vec3 jointWorldSpaceAnchor	= bodyA->m_position;
+
+            ConstraintDistance * joint = new ConstraintDistance();
+
+            joint->m_bodyA			= &m_bodies[ m_bodies.size() - 1 ];
+            joint->m_anchorA		= joint->m_bodyA->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+
+            body.m_position = joint->m_bodyA->m_position + Vec3( 1, 0, 0 );
+            body.m_orientation = Quat( 0, 0, 0, 1 );
+            body.m_shape = new ShapeBox( g_boxSmall, sizeof( g_boxSmall ) / sizeof( Vec3 ) );
+            body.m_invMass = 1.0f;
+            body.m_elasticity = 1.0f;
+            m_bodies.push_back( body );
+
+            joint->m_bodyB			= &m_bodies[ m_bodies.size() - 1 ];
+            joint->m_anchorB		= joint->m_bodyB->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+
+            m_constraints.push_back( joint );
+        }
+    }
+
+
+
+
 
     //
     //	Standard floor and walls
@@ -222,9 +274,11 @@ void Scene::Update( const float dt_sec ) {
     {
         m_constraints[i]->PreSolve(dt_sec);
     }
-    for (int i = 0; i < m_constraints.size(); i++)
-    {
-        m_constraints[i]->Solve();
+    const int maxIters = 50;
+    for ( int iters = 0; iters < maxIters; iters++ ) {
+        for ( int i = 0; i < m_constraints.size(); i++ ) {
+            m_constraints[ i ]->Solve();
+        }
     }
     for (int i = 0; i < m_constraints.size(); i++)
     {
