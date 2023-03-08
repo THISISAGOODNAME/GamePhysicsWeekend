@@ -106,79 +106,38 @@ Scene::Initialize
 ====================================================
 */
 void Scene::Initialize() {
-    TestSignedVolumeProjection();
-
     Body body;
 
-    body.m_position = Vec3( 10, 0, 3 );
-    body.m_orientation = Quat( 0, 0, 0, 1 );
-    body.m_linearVelocity = Vec3( -100, 0, 0 );
-    body.m_angularVelocity = Vec3( 0.0f, 0.0f, 0.0f );
+    body.m_position = Vec3(0, 0, 5);
+    body.m_orientation = Quat(0, 0, 0, 1);
+    body.m_shape = new ShapeBox(g_boxSmall, sizeof(g_boxSmall)/sizeof(Vec3));
+    body.m_invMass = 0.0f;
+    body.m_elasticity = 1.0f;
+    m_bodies.push_back(body);
+    Body* bodyA = &m_bodies[m_bodies.size() - 1];
+
+    body.m_position = Vec3(1, 0, 5);
+    body.m_orientation = Quat(0, 0, 0, 1);
+    body.m_shape = new ShapeBox(g_boxSmall, sizeof(g_boxSmall)/sizeof(Vec3));
     body.m_invMass = 1.0f;
-    body.m_elasticity = 0.5f;
-    body.m_friction = 0.5f;
-    body.m_shape = new ShapeSphere( 0.5f );
-    m_bodies.push_back( body );
+    body.m_elasticity = 1.0f;
+    m_bodies.push_back(body);
+    Body* bodyB = &m_bodies[m_bodies.size() - 1];
 
-    body.m_position = Vec3( -10, 0, 3 );
-    body.m_orientation = Quat( 0, 0, 0, 1 );
-    body.m_linearVelocity = Vec3( 100, 0, 0 );
-    body.m_angularVelocity = Vec3( 0, 10, 0 );
-    body.m_invMass = 1.0f;
-    body.m_elasticity = 0.5f;
-    body.m_friction = 0.5f;
-    body.m_shape = new ShapeConvex( g_diamond, sizeof( g_diamond ) / sizeof( Vec3 ) );
-    m_bodies.push_back( body );
+    const Vec3 jointWorldSpaceAnchor = bodyA->m_position;
 
-    // Dynamic Spheres
-    for ( int x = 0; x < 6; x++ ) {
-        for ( int y = 0; y < 6; y++ ) {
-            float radius = 0.5f;
-            float xx = float( x - 1 ) * radius * 1.5f;
-            float yy = float( y - 1 ) * radius * 1.5f;
-            body.m_position = Vec3( xx, yy, 10.0f );
-            body.m_orientation = Quat( 0, 0, 0, 1 );
-            body.m_linearVelocity.Zero();
-            body.m_invMass = 1.0f;
-            body.m_elasticity = 0.5f;
-            body.m_friction = 0.5f;
-            body.m_shape = new ShapeSphere( radius );
-            m_bodies.push_back( body );
-        }
-    }
+    ConstraintDistance* joint = new ConstraintDistance();
 
-    // Dynamic boxes
-    Vec3 boxVert[] = {
-            Vec3(-1,-1, -1 ),
-            Vec3( 1,-1, -1 ),
-            Vec3(-1, 1, -1 ),
-            Vec3( 1, 1, -1 ),
+    joint->m_bodyA = bodyA;
+    joint->m_anchorA = joint->m_bodyA->WorldSpaceToBodySpace(jointWorldSpaceAnchor);
 
-            Vec3(-1,-1,  1 ),
-            Vec3( 1,-1,  1 ),
-            Vec3(-1, 1,  1 ),
-            Vec3( 1, 1,  1 ),
-    };
-    for (int i = 0; i < 8; i++)
-    {
-        boxVert[i] *= 0.5f;
-    }
-    for ( int x = 0; x < 6; x++ ) {
-        for ( int y = 0; y < 6; y++ ) {
-            float radius = 1.0f;
-            float xx = float( x - 1 ) * radius * 1.5f;
-            float yy = float( y - 1 ) * radius * 1.5f;
-            body.m_position = Vec3( xx, yy, 20.0f );
-            body.m_orientation = Quat( 0, 0, 0, 1 );
-            body.m_linearVelocity.Zero();
-            body.m_invMass = 1.0f;
-            body.m_elasticity = 0.5f;
-            body.m_friction = 0.5f;
-            body.m_shape = new ShapeBox( boxVert, 8 );
-            m_bodies.push_back( body );
-        }
-    }
+    joint->m_bodyB = bodyB;
+    joint->m_anchorB = joint->m_bodyB->WorldSpaceToBodySpace(jointWorldSpaceAnchor);
+    m_constraints.push_back(joint);
 
+    //
+    //	Standard floor and walls
+    //
     AddStandardSandBox( m_bodies );
 }
 
@@ -256,6 +215,25 @@ void Scene::Update( const float dt_sec ) {
         qsort(contacts, numContacts, sizeof(contact_t) , CompareContacts);
     }
 
+    //
+    //	Solve Constraints
+    //
+    for (int i = 0; i < m_constraints.size(); i++)
+    {
+        m_constraints[i]->PreSolve(dt_sec);
+    }
+    for (int i = 0; i < m_constraints.size(); i++)
+    {
+        m_constraints[i]->Solve();
+    }
+    for (int i = 0; i < m_constraints.size(); i++)
+    {
+        m_constraints[i]->PostSolve();
+    }
+
+    //
+    // Apply ballistic impulses
+    //
     float accumulatedTime = 0.0f;
     for (int i = 0; i < numContacts; i++)
     {

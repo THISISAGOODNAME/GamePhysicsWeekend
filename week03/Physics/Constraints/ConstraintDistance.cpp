@@ -4,9 +4,59 @@
 #include "ConstraintDistance.h"
 
 void ConstraintDistance::PreSolve( const float dt_sec ) {
-	// TODO: Add code
+    // Get the world space position of the hinge from A's orientation
+    const Vec3 worldAnchorA = m_bodyA->BodySpaceToWorldSpace( m_anchorA );
+
+    // Get the world space position of the hinge from B's orientation
+    const Vec3 worldAnchorB = m_bodyB->BodySpaceToWorldSpace( m_anchorB );
+
+    const Vec3 r = worldAnchorB - worldAnchorA;
+    const Vec3 ra = worldAnchorA - m_bodyA->GetCenterOfMassWorldSpace();
+    const Vec3 rb = worldAnchorB - m_bodyB->GetCenterOfMassWorldSpace();
+    const Vec3 a = worldAnchorA;
+    const Vec3 b = worldAnchorB;
+
+    m_Jacobian.Zero();
+
+    Vec3 J1 = ( a - b ) * 2.0f;
+    m_Jacobian.rows[ 0 ][ 0 ] = J1.x;
+    m_Jacobian.rows[ 0 ][ 1 ] = J1.y;
+    m_Jacobian.rows[ 0 ][ 2 ] = J1.z;
+
+    Vec3 J2 = ra.Cross( ( a - b ) * 2.0f );
+    m_Jacobian.rows[ 0 ][ 3 ] = J2.x;
+    m_Jacobian.rows[ 0 ][ 4 ] = J2.y;
+    m_Jacobian.rows[ 0 ][ 5 ] = J2.z;
+
+    Vec3 J3 = ( b - a ) * 2.0f;
+    m_Jacobian.rows[ 0 ][ 6 ] = J3.x;
+    m_Jacobian.rows[ 0 ][ 7 ] = J3.y;
+    m_Jacobian.rows[ 0 ][ 8 ] = J3.z;
+
+    Vec3 J4 = rb.Cross( ( b - a ) * 2.0f );
+    m_Jacobian.rows[ 0 ][ 9 ] = J4.x;
+    m_Jacobian.rows[ 0 ][ 10] = J4.y;
+    m_Jacobian.rows[ 0 ][ 11] = J4.z;
+}
+
+void ConstraintDistance::Solve()
+{
+    const MatMN JacobianTranspose = m_Jacobian.Transpose();
+
+    // Build the system of equations
+    const VecN q_dt = GetVelocities();
+    const MatMN invMassMatrix = GetInverseMassMatrix();
+    const MatMN J_W_Jt = m_Jacobian * invMassMatrix * JacobianTranspose;
+    VecN rhs = m_Jacobian * q_dt * -1.0f;
+
+    // Solve for the Lagrange multipliers
+    const VecN lambdaN = LCP_GaussSeidel( J_W_Jt, rhs );
+
+    // Apply the impulses
+    const VecN impulses = JacobianTranspose * lambdaN;
+    ApplyImpulses( impulses );
 }
 
 void ConstraintDistance::PostSolve() {
-	// TODO: Add code
+
 }
