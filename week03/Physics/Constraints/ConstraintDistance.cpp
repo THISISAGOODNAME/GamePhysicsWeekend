@@ -44,6 +44,14 @@ void ConstraintDistance::PreSolve( const float dt_sec )
     //
     const VecN impulses = m_Jacobian.Transpose() * m_cachedLambda;
     ApplyImpulses( impulses );
+
+    //
+    //	Calculate the baumgarte stabilization
+    //
+    float C = r.Dot( r );
+    C = std::max( 0.0f, C - 0.01f );
+    const float Beta = 0.05f;
+    m_baumgarte = ( Beta / dt_sec ) * C;
 }
 
 void ConstraintDistance::Solve()
@@ -55,6 +63,7 @@ void ConstraintDistance::Solve()
     const MatMN invMassMatrix = GetInverseMassMatrix();
     const MatMN J_W_Jt = m_Jacobian * invMassMatrix * JacobianTranspose;
     VecN rhs = m_Jacobian * q_dt * -1.0f;
+    rhs[ 0 ] -= m_baumgarte;
 
     // Solve for the Lagrange multipliers
     const VecN lambdaN = LCP_GaussSeidel( J_W_Jt, rhs );

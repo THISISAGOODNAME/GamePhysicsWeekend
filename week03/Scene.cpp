@@ -38,6 +38,11 @@ void Scene::Reset() {
 	}
 	m_bodies.clear();
 
+    for ( int i = 0; i < m_constraints.size(); i++ ) {
+        delete m_constraints[ i ];
+    }
+    m_constraints.clear();
+
 	Initialize();
 }
 
