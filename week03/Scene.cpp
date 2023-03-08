@@ -249,7 +249,7 @@ Scene::Update
 ====================================================
 */
 void Scene::Update( const float dt_sec ) {
-    std::vector<ConstraintPenetration> penetrationConsTraints;
+    m_manifolds.RemoveExpired();
 
     // Gravity impulse
     for (int i = 0; i < m_bodies.size(); i++)
@@ -291,20 +291,7 @@ void Scene::Update( const float dt_sec ) {
             if ( 0.0f == contact.timeOfImpact)
             {
                 // static contact
-                ConstraintPenetration constraint;
-                constraint.m_bodyA = contact.bodyA;
-                constraint.m_bodyB = contact.bodyB;
-
-                constraint.m_anchorA = contact.ptOnA_LocalSpace;
-                constraint.m_anchorB = contact.ptOnB_LocalSpace;
-
-                // Get the normal in BodyA's space
-                Vec3 normal = constraint.m_bodyA->m_orientation.Inverse().RotatePoint( contact.normal * -1.0f );
-
-                constraint.m_normal = normal;
-                constraint.m_normal.Normalize();
-
-                penetrationConsTraints.push_back(constraint);
+                m_manifolds.AddContact(contact);
             }
             else
             {
@@ -328,26 +315,19 @@ void Scene::Update( const float dt_sec ) {
     {
         m_constraints[i]->PreSolve(dt_sec);
     }
-    for (int i = 0; i < penetrationConsTraints.size(); i++)
-    {
-        penetrationConsTraints[i].PreSolve(dt_sec);
-    }
+    m_manifolds.PreSolve(dt_sec);
     const int maxIters = 5;
     for ( int iters = 0; iters < maxIters; iters++ ) {
         for ( int i = 0; i < m_constraints.size(); i++ ) {
             m_constraints[ i ]->Solve();
         }
-        for (int i = 0; i < penetrationConsTraints.size(); ++i) {
-            penetrationConsTraints[i].Solve();
-        }
+        m_manifolds.Solve();
     }
     for (int i = 0; i < m_constraints.size(); i++)
     {
         m_constraints[i]->PostSolve();
     }
-    for (int i = 0; i < penetrationConsTraints.size(); ++i) {
-        penetrationConsTraints[i].PostSolve();
-    }
+    m_manifolds.PostSolve();
 
     //
     // Apply ballistic impulses
