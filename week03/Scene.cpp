@@ -191,7 +191,7 @@ void Scene::Initialize() {
     //
     //	Stack of Boxes
     //
-    if (true)
+    if (false)
     {
         const int stackHeight = 5;
         for ( int x = 0; x < 1; x++ ) {
@@ -215,7 +215,164 @@ void Scene::Initialize() {
         }
     }
 
+    //
+    //	Build a ragdoll
+    //
+    if (true)
+    {
+        Vec3 offset = Vec3( -5, 0, 0 );
 
+        // head
+        body.m_position = Vec3( 0, 0, 5.5f ) + offset;
+        body.m_orientation = Quat( 0, 0, 0, 1 );
+        body.m_shape = new ShapeBox( g_boxSmall, sizeof( g_boxSmall ) / sizeof( Vec3 ) );
+        body.m_invMass = 2.0f;
+        body.m_elasticity = 1.0f;
+        body.m_friction = 1.0f;
+        m_bodies.push_back( body );
+
+        // torso
+        body.m_position = Vec3( 0, 0, 4 ) + offset;
+        body.m_orientation = Quat( 0, 0, 0, 1 );
+        body.m_shape = new ShapeBox( g_boxBody, sizeof( g_boxBody ) / sizeof( Vec3 ) );
+        body.m_invMass = 0.5f;
+        body.m_elasticity = 1.0f;
+        body.m_friction = 1.0f;
+        m_bodies.push_back( body );
+
+        // left arm
+        body.m_position = Vec3( 0.0f, 2.0f, 4.75f ) + offset;
+        body.m_orientation = Quat( Vec3( 0, 0, 1 ), -3.1415f / 2.0f );
+        body.m_shape = new ShapeBox( g_boxLimb, sizeof( g_boxLimb ) / sizeof( Vec3 ) );
+        body.m_invMass = 1.0f;
+        body.m_elasticity = 1.0f;
+        body.m_friction = 1.0f;
+        m_bodies.push_back( body );
+
+        // right arm
+        body.m_position = Vec3( 0.0f, -2.0f, 4.75f ) + offset;
+        body.m_orientation = Quat( Vec3( 0, 0, 1 ), 3.1415f / 2.0f );
+        body.m_shape = new ShapeBox( g_boxLimb, sizeof( g_boxLimb ) / sizeof( Vec3 ) );
+        body.m_invMass = 1.0f;
+        body.m_elasticity = 1.0f;
+        body.m_friction = 1.0f;
+        m_bodies.push_back( body );
+
+        // left leg
+        body.m_position = Vec3( 0.0f, 1.0f, 2.5f ) + offset;
+        body.m_orientation = Quat( Vec3( 0, 1, 0 ), 3.1415f / 2.0f );
+        body.m_shape = new ShapeBox( g_boxLimb, sizeof( g_boxLimb ) / sizeof( Vec3 ) );
+        body.m_invMass = 1.0f;
+        body.m_elasticity = 1.0f;
+        body.m_friction = 1.0f;
+        m_bodies.push_back( body );
+
+        // right leg
+        body.m_position = Vec3( 0.0f, -1.0f, 2.5f ) + offset;
+        body.m_orientation = Quat( Vec3( 0, 1, 0 ), 3.1415f / 2.0f );
+        body.m_shape = new ShapeBox( g_boxLimb, sizeof( g_boxLimb ) / sizeof( Vec3 ) );
+        body.m_invMass = 1.0f;
+        body.m_elasticity = 1.0f;
+        body.m_friction = 1.0f;
+        m_bodies.push_back( body );
+
+        const int idxHead = 0;
+        const int idxTorso = 1;
+        const int idxArmLeft = 2;
+        const int idxArmRight = 3;
+        const int idxLegLeft = 4;
+        const int idxLegRight = 5;
+
+        // Neck
+        {
+            ConstraintHingeQuatLimited * joint = new ConstraintHingeQuatLimited();
+            joint->m_bodyA = &m_bodies[ idxHead ];
+            joint->m_bodyB = &m_bodies[ idxTorso ];
+
+            const Vec3 jointWorldSpaceAnchor	= joint->m_bodyA->m_position + Vec3( 0, 0, -0.5f );
+            joint->m_anchorA	= joint->m_bodyA->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+            joint->m_anchorB	= joint->m_bodyB->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+
+            joint->m_axisA = joint->m_bodyA->m_orientation.Inverse().RotatePoint( Vec3( 0, 1, 0 ) );
+
+            // Set the initial relative orientation
+            joint->m_q0 = joint->m_bodyA->m_orientation.Inverse() * joint->m_bodyB->m_orientation;
+
+            m_constraints.push_back( joint );
+        }
+
+        // Shoulder Left
+        {
+            ConstraintConstantVelocityLimited * joint = new ConstraintConstantVelocityLimited();
+            joint->m_bodyB = &m_bodies[ idxArmLeft ];
+            joint->m_bodyA = &m_bodies[ idxTorso ];
+
+            const Vec3 jointWorldSpaceAnchor	= joint->m_bodyB->m_position + Vec3( 0, -1.0f, 0.0f );
+            joint->m_anchorA	= joint->m_bodyA->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+            joint->m_anchorB	= joint->m_bodyB->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+
+            joint->m_axisA = joint->m_bodyA->m_orientation.Inverse().RotatePoint( Vec3( 0, 1, 0 ) );
+
+            // Set the initial relative orientation
+            joint->m_q0 = joint->m_bodyA->m_orientation.Inverse() * joint->m_bodyB->m_orientation;
+
+            m_constraints.push_back( joint );
+        }
+
+        // Shoulder Right
+        {
+            ConstraintConstantVelocityLimited * joint = new ConstraintConstantVelocityLimited();
+            joint->m_bodyB = &m_bodies[ idxArmRight ];
+            joint->m_bodyA = &m_bodies[ idxTorso ];
+
+            const Vec3 jointWorldSpaceAnchor	= joint->m_bodyB->m_position + Vec3( 0, 1.0f, 0.0f );
+            joint->m_anchorA	= joint->m_bodyA->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+            joint->m_anchorB	= joint->m_bodyB->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+
+            joint->m_axisA = joint->m_bodyA->m_orientation.Inverse().RotatePoint( Vec3( 0, -1, 0 ) );
+
+            // Set the initial relative orientation
+            joint->m_q0 = joint->m_bodyA->m_orientation.Inverse() * joint->m_bodyB->m_orientation;
+
+            m_constraints.push_back( joint );
+        }
+
+        // Hip Left
+        {
+            ConstraintHingeQuatLimited * joint = new ConstraintHingeQuatLimited();
+            joint->m_bodyB = &m_bodies[ idxLegLeft ];
+            joint->m_bodyA = &m_bodies[ idxTorso ];
+
+            const Vec3 jointWorldSpaceAnchor	= joint->m_bodyB->m_position + Vec3( 0, 0, 0.5f );
+            joint->m_anchorA	= joint->m_bodyA->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+            joint->m_anchorB	= joint->m_bodyB->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+
+            joint->m_axisA = joint->m_bodyA->m_orientation.Inverse().RotatePoint( Vec3( 0, 1, 0 ) );
+
+            // Set the initial relative orientation
+            joint->m_q0 = joint->m_bodyA->m_orientation.Inverse() * joint->m_bodyB->m_orientation;
+
+            m_constraints.push_back( joint );
+        }
+
+        // Hip Right
+        {
+            ConstraintHingeQuatLimited * joint = new ConstraintHingeQuatLimited();
+            joint->m_bodyB = &m_bodies[ idxLegRight ];
+            joint->m_bodyA = &m_bodies[ idxTorso ];
+
+            const Vec3 jointWorldSpaceAnchor	= joint->m_bodyB->m_position + Vec3( 0, 0, 0.5f );
+            joint->m_anchorA	= joint->m_bodyA->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+            joint->m_anchorB	= joint->m_bodyB->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+
+            joint->m_axisA = joint->m_bodyA->m_orientation.Inverse().RotatePoint( Vec3( 0, 1, 0 ) );
+
+            // Set the initial relative orientation
+            joint->m_q0 = joint->m_bodyA->m_orientation.Inverse() * joint->m_bodyB->m_orientation;
+
+            m_constraints.push_back( joint );
+        }
+    }
 
 
     //
