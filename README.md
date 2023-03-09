@@ -2,6 +2,8 @@
 
 [Game Physics in one weekend](https://gamephysicsweekend.github.io/)
 
+![gif](Screenshots/GIF%202023-3-9%2022-52-04.gif)
+
 # Controls
 
 ```markdown
