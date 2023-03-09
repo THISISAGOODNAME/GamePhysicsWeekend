@@ -377,7 +377,7 @@ void Scene::Initialize() {
     //
     //	Motor
     //
-    if (true)
+    if (false)
     {
         Vec3 motorPos = Vec3( 5, 0, 2 );
         Vec3 motorAxis = Vec3( 0, 0, 1 ).Normalize();
@@ -417,6 +417,36 @@ void Scene::Initialize() {
 
             m_constraints.push_back( joint );
         }
+    }
+
+    //
+    //	Mover
+    //
+    if (true)
+    {
+        body.m_position = Vec3( 10, 0, 5 );
+        body.m_linearVelocity = Vec3( 0, 0, 0 );
+        body.m_orientation = Quat( 0, 0, 0, 1 );
+        body.m_shape = new ShapeBox( g_boxPlatform, sizeof( g_boxPlatform ) / sizeof( Vec3 ) );
+        body.m_invMass = 0.0f;
+        body.m_elasticity = 0.1f;
+        body.m_friction = 0.9f;
+        m_bodies.push_back( body );
+        {
+            ConstraintMoverSimple * mover = new ConstraintMoverSimple();
+            mover->m_bodyA = &m_bodies[ m_bodies.size() - 1 ];
+
+            m_constraints.push_back( mover );
+        }
+
+        body.m_position = Vec3( 10, 0, 6.3f );
+        body.m_linearVelocity = Vec3( 0, 0, 0 );
+        body.m_orientation = Quat( 0, 0, 0, 1 );
+        body.m_shape = new ShapeBox( g_boxUnit, sizeof( g_boxUnit ) / sizeof( Vec3 ) );
+        body.m_invMass = 1.0f;
+        body.m_elasticity = 0.1f;
+        body.m_friction = 0.9f;
+        m_bodies.push_back( body );
     }
 
 
