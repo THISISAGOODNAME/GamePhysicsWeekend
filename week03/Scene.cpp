@@ -114,111 +114,9 @@ void Scene::Initialize() {
     Body body;
 
     //
-    // Build a joint
-    //
-    if (false)
-    {
-        body.m_position = Vec3(0, 0, 5);
-        body.m_orientation = Quat(0, 0, 0, 1);
-        body.m_shape = new ShapeBox(g_boxSmall, sizeof(g_boxSmall)/sizeof(Vec3));
-        body.m_invMass = 0.0f;
-        body.m_elasticity = 1.0f;
-        m_bodies.push_back(body);
-        Body* bodyA = &m_bodies[m_bodies.size() - 1];
-
-        body.m_position = Vec3(1, 0, 5);
-        body.m_orientation = Quat(0, 0, 0, 1);
-        body.m_shape = new ShapeBox(g_boxSmall, sizeof(g_boxSmall)/sizeof(Vec3));
-        body.m_invMass = 1.0f;
-        body.m_elasticity = 1.0f;
-        m_bodies.push_back(body);
-        Body* bodyB = &m_bodies[m_bodies.size() - 1];
-
-        const Vec3 jointWorldSpaceAnchor = bodyA->m_position;
-
-        ConstraintDistance* joint = new ConstraintDistance();
-
-        joint->m_bodyA = bodyA;
-        joint->m_anchorA = joint->m_bodyA->WorldSpaceToBodySpace(jointWorldSpaceAnchor);
-
-        joint->m_bodyB = bodyB;
-        joint->m_anchorB = joint->m_bodyB->WorldSpaceToBodySpace(jointWorldSpaceAnchor);
-        m_constraints.push_back(joint);
-    }
-
-    //
-    // Build a chain for funsies
-    //
-    if (false)
-    {
-        const int numJoints = 5;
-        for ( int i = 0; i < numJoints; i++ ) {
-            if ( i == 0 ) {
-                body.m_position = Vec3( 0.0f, 5.0f, (float)numJoints + 3.0f );
-                body.m_orientation = Quat( 0, 0, 0, 1 );
-                body.m_shape = new ShapeBox( g_boxSmall, sizeof( g_boxSmall ) / sizeof( Vec3 ) );
-                body.m_invMass = 0.0f;
-                body.m_elasticity = 1.0f;
-                m_bodies.push_back( body );
-            } else {
-                body.m_invMass = 1.0f;
-            }
-
-            body.m_linearVelocity = Vec3( 0, 0, 0 );
-
-            Body * bodyA = &m_bodies[ m_bodies.size() - 1 ];
-            const Vec3 jointWorldSpaceAnchor	= bodyA->m_position;
-
-            ConstraintDistance * joint = new ConstraintDistance();
-
-            joint->m_bodyA			= &m_bodies[ m_bodies.size() - 1 ];
-            joint->m_anchorA		= joint->m_bodyA->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
-
-            body.m_position = joint->m_bodyA->m_position + Vec3( 1, 0, 0 );
-            body.m_orientation = Quat( 0, 0, 0, 1 );
-            body.m_shape = new ShapeBox( g_boxSmall, sizeof( g_boxSmall ) / sizeof( Vec3 ) );
-            body.m_invMass = 1.0f;
-            body.m_elasticity = 1.0f;
-            m_bodies.push_back( body );
-
-            joint->m_bodyB			= &m_bodies[ m_bodies.size() - 1 ];
-            joint->m_anchorB		= joint->m_bodyB->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
-
-            m_constraints.push_back( joint );
-        }
-    }
-
-    //
-    //	Stack of Boxes
-    //
-    if (false)
-    {
-        const int stackHeight = 5;
-        for ( int x = 0; x < 1; x++ ) {
-            for ( int y = 0; y < 1; y++ ) {
-                for ( int z = 0; z < stackHeight; z++ ) {
-                    float offset = ( ( z & 1 ) == 0 ) ? 0.0f : 0.15f;
-                    float xx = (float)x + offset;
-                    float yy = (float)y + offset;
-                    float delta = 0.04f;
-                    float scaleHeight = 2.0f + delta;
-                    float deltaHeight = 1.0f + delta;
-                    body.m_position = Vec3( (float)xx * scaleHeight, (float)yy * scaleHeight, deltaHeight + (float)z * scaleHeight );
-                    body.m_orientation = Quat( 0, 0, 0, 1 );
-                    body.m_shape = new ShapeBox( g_boxUnit, sizeof( g_boxUnit ) / sizeof( Vec3 ) );
-                    body.m_invMass = 1.0f;
-                    body.m_elasticity = 0.5f;
-                    body.m_friction = 0.5f;
-                    m_bodies.push_back( body );
-                }
-            }
-        }
-    }
-
-    //
     //	Build a ragdoll
     //
-    if (false)
+    if (true)
     {
         Vec3 offset = Vec3( -5, 0, 0 );
 
@@ -375,9 +273,113 @@ void Scene::Initialize() {
     }
 
     //
+    // Build a joint
+    //
+    if (true)
+    {
+        body.m_position = Vec3(0, -10, 5);
+        body.m_orientation = Quat(0, 0, 0, 1);
+        body.m_shape = new ShapeBox(g_boxSmall, sizeof(g_boxSmall)/sizeof(Vec3));
+        body.m_invMass = 0.0f;
+        body.m_elasticity = 1.0f;
+        m_bodies.push_back(body);
+        Body* bodyA = &m_bodies[m_bodies.size() - 1];
+
+        body.m_position = Vec3(1, -10, 5);
+        body.m_orientation = Quat(0, 0, 0, 1);
+        body.m_shape = new ShapeBox(g_boxSmall, sizeof(g_boxSmall)/sizeof(Vec3));
+        body.m_invMass = 1.0f;
+        body.m_elasticity = 1.0f;
+        m_bodies.push_back(body);
+        Body* bodyB = &m_bodies[m_bodies.size() - 1];
+
+        const Vec3 jointWorldSpaceAnchor = bodyA->m_position;
+
+        ConstraintDistance* joint = new ConstraintDistance();
+
+        joint->m_bodyA = bodyA;
+        joint->m_anchorA = joint->m_bodyA->WorldSpaceToBodySpace(jointWorldSpaceAnchor);
+
+        joint->m_bodyB = bodyB;
+        joint->m_anchorB = joint->m_bodyB->WorldSpaceToBodySpace(jointWorldSpaceAnchor);
+        m_constraints.push_back(joint);
+    }
+
+    //
+    // Build a chain for funsies
+    //
+    if (true)
+    {
+        const int numJoints = 5;
+        for ( int i = 0; i < numJoints; i++ ) {
+            if ( i == 0 ) {
+                body.m_position = Vec3( 0.0f, 15.0f, (float)numJoints + 3.0f );
+                body.m_orientation = Quat( 0, 0, 0, 1 );
+                body.m_shape = new ShapeBox( g_boxSmall, sizeof( g_boxSmall ) / sizeof( Vec3 ) );
+                body.m_invMass = 0.0f;
+                body.m_elasticity = 1.0f;
+                m_bodies.push_back( body );
+            } else {
+                body.m_invMass = 1.0f;
+            }
+
+            body.m_linearVelocity = Vec3( 0, 0, 0 );
+
+            Body * bodyA = &m_bodies[ m_bodies.size() - 1 ];
+            const Vec3 jointWorldSpaceAnchor	= bodyA->m_position;
+
+            ConstraintDistance * joint = new ConstraintDistance();
+
+            joint->m_bodyA			= &m_bodies[ m_bodies.size() - 1 ];
+            joint->m_anchorA		= joint->m_bodyA->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+
+            body.m_position = joint->m_bodyA->m_position + Vec3( 1, 0, 0 );
+            body.m_orientation = Quat( 0, 0, 0, 1 );
+            body.m_shape = new ShapeBox( g_boxSmall, sizeof( g_boxSmall ) / sizeof( Vec3 ) );
+            body.m_invMass = 1.0f;
+            body.m_elasticity = 1.0f;
+            m_bodies.push_back( body );
+
+            joint->m_bodyB			= &m_bodies[ m_bodies.size() - 1 ];
+            joint->m_anchorB		= joint->m_bodyB->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+
+            m_constraints.push_back( joint );
+        }
+    }
+
+    //
+    //	Stack of Boxes
+    //
+    if (true)
+    {
+        const int stackHeight = 5;
+        for ( int x = 0; x < 1; x++ ) {
+            for ( int y = 0; y < 1; y++ ) {
+                for ( int z = 0; z < stackHeight; z++ ) {
+                    float offset = ( ( z & 1 ) == 0 ) ? 0.0f : 0.15f;
+                    float xx = (float)x + offset;
+                    float yy = (float)y + offset;
+                    float delta = 0.04f;
+                    float scaleHeight = 2.0f + delta;
+                    float deltaHeight = 1.0f + delta;
+                    body.m_position = Vec3( (float)xx * scaleHeight, (float)yy * scaleHeight, deltaHeight + (float)z * scaleHeight );
+                    body.m_orientation = Quat( 0, 0, 0, 1 );
+                    body.m_shape = new ShapeBox( g_boxUnit, sizeof( g_boxUnit ) / sizeof( Vec3 ) );
+                    body.m_invMass = 1.0f;
+                    body.m_elasticity = 0.5f;
+                    body.m_friction = 0.5f;
+                    m_bodies.push_back( body );
+                }
+            }
+        }
+    }
+
+
+
+    //
     //	Motor
     //
-    if (false)
+    if (true)
     {
         Vec3 motorPos = Vec3( 5, 0, 2 );
         Vec3 motorAxis = Vec3( 0, 0, 1 ).Normalize();
