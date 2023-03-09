@@ -218,7 +218,7 @@ void Scene::Initialize() {
     //
     //	Build a ragdoll
     //
-    if (true)
+    if (false)
     {
         Vec3 offset = Vec3( -5, 0, 0 );
 
@@ -373,6 +373,52 @@ void Scene::Initialize() {
             m_constraints.push_back( joint );
         }
     }
+
+    //
+    //	Motor
+    //
+    if (true)
+    {
+        Vec3 motorPos = Vec3( 5, 0, 2 );
+        Vec3 motorAxis = Vec3( 0, 0, 1 ).Normalize();
+        Quat motorOrient = Quat( 1, 0, 0, 0 );
+
+        body.m_position = motorPos;
+        body.m_linearVelocity = Vec3( 0.0f, 0.0f, 0.0f );
+        body.m_orientation = Quat( 0, 0, 0, 1 );
+        body.m_shape = new ShapeBox( g_boxSmall, sizeof( g_boxSmall ) / sizeof( Vec3 ) );
+        body.m_invMass = 0.0f;
+        body.m_elasticity = 0.9f;
+        body.m_friction = 0.5f;
+        m_bodies.push_back( body );
+
+        body.m_position = motorPos - motorAxis;
+        body.m_linearVelocity = Vec3( 0.0f, 0.0f, 0.0f );
+        body.m_orientation = motorOrient;
+        body.m_shape = new ShapeBox( g_boxBeam, sizeof( g_boxBeam ) / sizeof( Vec3 ) );
+        body.m_invMass = 0.01f;
+        body.m_elasticity = 1.0f;
+        body.m_friction = 0.5f;
+        m_bodies.push_back( body );
+        {
+            ConstraintMotor * joint = new ConstraintMotor();
+            joint->m_bodyA = &m_bodies[ m_bodies.size() - 2 ];
+            joint->m_bodyB = &m_bodies[ m_bodies.size() - 1 ];
+
+            const Vec3 jointWorldSpaceAnchor	= joint->m_bodyA->m_position;
+            joint->m_anchorA	= joint->m_bodyA->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+            joint->m_anchorB	= joint->m_bodyB->WorldSpaceToBodySpace( jointWorldSpaceAnchor );
+
+            joint->m_motorSpeed = 2.0f;
+            joint->m_motorAxis	= joint->m_bodyA->m_orientation.Inverse().RotatePoint( motorAxis );
+
+            // Set the initial relative orientation (in bodyA's space)
+            joint->m_q0 = joint->m_bodyA->m_orientation.Inverse() * joint->m_bodyB->m_orientation;
+
+            m_constraints.push_back( joint );
+        }
+    }
+
 
 
     //
